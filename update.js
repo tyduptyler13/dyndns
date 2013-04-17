@@ -8,33 +8,43 @@ if (process.argv.length<3){
 var request = require('request');
 var ip=process.argv[2];
 
+
+/************ This is where your settings go ***************/
+
+
 //Domain independend settings.
 var args = {
 	a : "rec_edit",
-	type : "A",//IPV4 Only. You will need to change the url in ip.js for IPV6
+	type : "A",
 	content : ip,
 	ttl : 1,
 	service_mode : 1,
-	tkn : "NEED TO FILL THIS IN",//TODO
-	email : "NEED TO FILL THIS IN"//TODO
+	tkn : "__YOUR TOKEN GOES HERE__",
+	email : "__YOUR EMAIL GOES HERE__"
 };
-//MyUPlay Specific settings.
-var d1 = {
-	z : "DOMAIN 1",//TODO
-	id : 1,//TODO
-	name : "DOMAIN 1"//TODO
+var domain1 = {
+	z : "",
+	id : 1,
+	name : ""
 };
-//hgtti specific settings.
-var d2 = {
-	z : "DOMAIN 2",//TODO
-	id : 1,//TODO
-	name : "DOMAIN 2"//TODO
+var domain2 = {
+	z : "",
+	id : 1,
+	name : ""
 };
 
-/*
- * Add any custom domain settings to the setup above.
-*/
-domains = [d1,d2];
+var domains = [domain1,domain2];//This uses two to show that you can update "unlimited" domains.
+
+
+
+
+
+/*********** Everything below should not be changed. ***********/
+
+
+
+
+
 
 //Add domain independent data.
 domains.forEach(function(domain){

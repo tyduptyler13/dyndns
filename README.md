@@ -9,11 +9,12 @@ Notes
 - This script is setup for retrieving IPV4. To use IPV6, you will need to
 change values in ip.js and change the "A" in update.js to "AAAA".
 
-Requirements
+Requirements (Preinstall)
 ----
-You will need [node.js](http://nodejs.org/) installed on your computer as well as npm.
+* You will need [node.js](http://nodejs.org/) installed on your computer as well as npm.
+* You will need node.io (Run `sudo npm install -g node.io` after node is installed.)
 
-Installation
+Setup
 ----
 1. Open the directory you wish to install this to. 
 2. Copy the .js files as well as the .sh file.
@@ -30,4 +31,8 @@ Installation
 	* To edit crontab run `sudo crontab -e`
 7. Test the script once using the long path as crontab will be using the long path.
 
+
+Known Issues
+----
+Sometimes cron does not execute this script correctly and thus means you will need to execute it in some other manner if you want it to be automatic.
 
