@@ -28,9 +28,7 @@ Setup
 	* Now add or remove any custom domains to the domains variable.
 6. Edit crontab to execute this script at any interval you like. Keep in mind it will make requests to the url for IP info every time. Ex: "*/30 * * * * /home/usr/dyndns/update.sh" which means check every 30 mins.
 	* To edit crontab run `sudo crontab -e`
+	* THIS IS IMPORTANT! Add the PATH variable to your cron! You will need node.js in that path. (Default path for node is "/usr/local/bin")
 7. Test the script once to make sure it works.
 
 *We don't recommend running this directly from the git path as an update will overwrite your settings.
-
-Known Issues
-* ~~Sometimes won't update if cron has trouble writing to files.~~ (Fixed, if cron can't save to files it will update every time.)
