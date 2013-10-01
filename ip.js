@@ -6,7 +6,7 @@ var ip = {
 		this.getHtml("http://www.whatismyip.com/" , function(err, $){
 			if (err) this.exit(err);
 
-			this.emit($('#greenip').fulltext);
+			this.emit($('.ip').fulltext);
 		});
 	}
 }
