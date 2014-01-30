@@ -2,6 +2,7 @@ var fs = require('fs');
 var cheerio = require('cheerio');
 var request = require('request');
 var os = require('os');
+var v6 = require('ipv6').v6;
 
 var settings, cache={};
 var ips = {};
@@ -198,7 +199,13 @@ function getIpv4(callback){
 
 function getIpv6(callback){
 	os.networkInterfaces()[settings.global.ipv6Int].forEach(function(addr){
-		//TODO
+		if (addr.family === "IPv6"){
+			var test = new v6.Address(addr.address);
+			if (test.getScope() === 'Global'){
+				callback(addr.address);
+				return;
+			}
+		}
 	});
 }
 

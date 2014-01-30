@@ -72,4 +72,5 @@ Special notes:
 - `"Id"` can have `"?"` instead of the actual id. The program will look it up and update your settings file the first time its run.
 - Content field can have {ipv4} or {ipv6} which will be replaced at update time.
 - The global includes are included only at update time so DO NOT remove `name` or `type` from the domains. It will break id lookup functionality.
+- Ipv6 will be the first Global address found on your network interface.
 
