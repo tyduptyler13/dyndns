@@ -1,0 +1,19 @@
+{
+	"name": "DynDNS",
+	"version": "2.0.0",
+	"description": "Updates cloudflare when the ip changes",
+	"author": "Tyler Scott <tydup13@cs.colostate.edu>",
+	"dependencies": {
+		"request": "2.33.x",
+		"cron": "1.0.x",
+		"cheerio": "0.13.x"
+	},
+	"engine": "node 0.10.x",
+	"scripts": {
+		"start": "node update.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/tyduptyler13/dyndns.git"
+	}
+}

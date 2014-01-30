@@ -1,118 +1,238 @@
-#!/usr/bin/env node
-
-if (process.argv.length<3){
-	console.warn("Missing ip! Use: node update.js {ip}");
-	process.exit(1);
-}
-
+var fs = require('fs');
+var cheerio = require('cheerio');
 var request = require('request');
-var ip=process.argv[2];
+var os = require('os');
 
+var settings, cache={};
+var ips = {};
 
-/************ This is where your settings go ***************/
+var ipv4Domains = [];
+var ipv6Domains = [];
 
+function init(){
+	fs.readFile('settings.json', 'utf8', function(err, data){
 
-//Domain independend settings.
-var args = {
-	a : "rec_edit",
-	type : "A",
-	content : ip,
-	ttl : 1,
-	service_mode : 1,
-	tkn : "__YOUR TOKEN GOES HERE__",
-	email : "__YOUR EMAIL GOES HERE__"
-};
-var domain1 = {
-	z : "",
-	id : 1,
-	name : ""
-};
-var domain2 = {
-	z : "",
-	id : 1,
-	name : ""
-};
+		if (err){
+			console.log(err);
+		} else {
 
-var domains = [domain1,domain2];//This uses two to show that you can update "unlimited" domains.
+			settings = JSON.parse(data);
 
+			settings.domains.forEach(function(domain){
+				if (domain.id == "?")
+					getId(domain);
+				if (domain.content.indexOf("{ipv4}")!=-1)
+					ipv4Domains.push(domain);
+				if (domain.content.indexOf("{ipv6}")!=-1)
+					ipv6Domains.push(domain);
+			});
 
+			fs.readFile('ips.json', 'utf8', function(err, data){
 
+				if (err){
+					ips = {ipv4:"", ipv6:""};
+				} else {
+					ips = JSON.parse(data);
+				}
 
+				run();
 
-/*********** Everything below should not be changed. ***********/
+			});
+		}
 
-
-
-
-
-
-//Add domain independent data.
-domains.forEach(function(domain){
-	for (arg in args){
-		domain[arg]=args[arg];
-	}
-});
-
-//Request options.
-var options = {
-	url : "https://www.cloudflare.com/api_json.html",
-	timeout : 5000,
-	strictSSL : true
-};
-
-var qs = new Array(2);
-
-for (var x=0;x<domains.length;++x){
-	qs[x] = clone(options);
-	qs[x]["qs"] = domains[x];
+	});
 }
 
-qs.forEach(function(domain){
-	request(domain, function(err, res, body){
-		if (err){
-			console.warn(err);
-			return;
-		}
-		if (res.statusCode == 200){
-			var responce = JSON.parse(body);
-			if (responce['result']=="success"){
-				console.log("Operation was a success for "+domain.qs.z+".");
-			} else {
-				console.warn("Something went wrong!");
+function getId(domain){
+	var save = function(){
+
+		cache[domain.name.replace('.','_')].response.recs.objs.forEach(function(record){
+			if (record.name == domain.name && record.type == domain.type){
+				domain.id = record.rec_id;
 			}
+		});
+
+		fs.writeFile("settings.json", JSON.stringify(settings, null, "\t"), function(err){
+			if (err){
+				console.warn(err);
+			} else {
+				console.log("Updated settings with domain id for " + domain.name + ".");
+			}
+		});
+	};
+
+	if (cache[domain.name.replace('.','_')]==undefined){
+		request({
+			url: settings.global.url,
+			qs: {
+				email : settings.global.includes.email,
+				tkn : settings.global.includes.tkn,
+				z : domain.z,
+				a : "rec_load_all"
+			}
+		}, function(err, response, body){
+			if (err){
+				console.warn("Could not get id for domain!", err);
+			} else {
+				var response = JSON.parse(body);
+				if (response.err){
+					console.log("Failed to get id: ", response.msg);
+					return;
+				} else {
+					cache[domain.name.replace('.','_')] = response;
+					save();
+				}
+			}
+		});
+	} else {
+		save();
+	}
+}
+
+function saveips(){
+	fs.writeFile('ips.json', JSON.stringify(ips), function(err){
+		if (err){
+			console.warn("Failed to save ips.", err);
+		} else {
+			console.log("Saved ips to ips.json");
 		}
 	});
-});
+}
+
+function run(){
+
+	try{
+
+		if (settings.global.checkipv4!==false){
+			getIpv4(function(ip){
+				if (ips.ipv4 != ip){
+					ips.ipv4 = ip;
+					console.log("Ipv4 changed!", ip);
+					update(ipv4Domains);
+				}
+			});
+		} else {
+			console.log("Skipping ipv4 check.");
+		}
+
+		if (settings.global.checkipv6!==false){
+			getIpv6(function(ip){
+				if (ips.ipv6 != ip){
+					ips.ipv6 = ip;
+					console.log("Ipv6 changed!", ip);
+					update(ipv6Domains);
+				}
+			});
+		} else {
+			console.log("Skipping ipv6 check.");
+		}
+
+	} catch (e) {
+		console.warn("Something has gone wrong in the main loop! ", e);
+	}
+
+}
+
+function update(list){
+	saveips(); //Save for next run.
+
+	var qss = [];
+
+	list.forEach(function(i){
+		var copy = clone(i);
+		copy.content = copy.content.replace('{ipv4}', ips.ipv4).replace('{ipv6}', ips.ipv6);
+
+		for (var attr in settings.global.includes){
+			copy[attr] = settings.global.includes[attr];
+		}
+
+		qss.push(copy);
+	});
+
+	qss.forEach(function(qs){
+
+		var req = {
+				url: settings.global.url,
+				qs: qs,
+				timeout: global.timeout,
+				strictSSL: global.strictSSL
+		};
+
+		request(req, function(err, res, body){
+			if (err){
+				console.warn(err);
+				return;
+			}
+			if (res.statusCode == 200){
+				var responce = JSON.parse(body);
+				if (responce['result']=="success"){
+					console.log("Operation was a success for " + qs.z + ".");
+				} else {
+					console.warn("Something went wrong!");
+				}
+			}
+		});
+	});
+}
+
+function getIp(url, query, callback){
+
+	request(url, function(err, resp, body){
+
+		if (err){
+			console.warn("Failed to get ip.", resp);
+			return;
+		}
+
+		var $ = cheerio.load(body);
+
+		callback($(query).text());
+
+	});
+
+}
+
+function getIpv4(callback){
+	getIp(settings.global.ipv4Site, settings.global.ipv4Query, callback);
+}
+
+function getIpv6(callback){
+	os.networkInterfaces()[settings.global.ipv6Int].forEach(function(addr){
+		//TODO
+	});
+}
 
 function clone(obj) {
-    // Handle the 3 simple types, and null or undefined
-    if (null == obj || "object" != typeof obj) return obj;
+	// Handle the 3 simple types, and null or undefined
+	if (null == obj || "object" != typeof obj) return obj;
 
-    // Handle Date
-    if (obj instanceof Date) {
-        var copy = new Date();
-        copy.setTime(obj.getTime());
-        return copy;
-    }
+	// Handle Date
+	if (obj instanceof Date) {
+		var copy = new Date();
+		copy.setTime(obj.getTime());
+		return copy;
+	}
 
-    // Handle Array
-    if (obj instanceof Array) {
-        var copy = [];
-        for (var i = 0, len = obj.length; i < len; i++) {
-            copy[i] = clone(obj[i]);
-        }
-        return copy;
-    }
+	// Handle Array
+	if (obj instanceof Array) {
+		var copy = [];
+		for (var i = 0, len = obj.length; i < len; i++) {
+			copy[i] = clone(obj[i]);
+		}
+		return copy;
+	}
 
-    // Handle Object
-    if (obj instanceof Object) {
-        var copy = {};
-        for (var attr in obj) {
-            if (obj.hasOwnProperty(attr)) copy[attr] = clone(obj[attr]);
-        }
-        return copy;
-    }
+	// Handle Object
+	if (obj instanceof Object) {
+		var copy = {};
+		for (var attr in obj) {
+			if (obj.hasOwnProperty(attr)) copy[attr] = clone(obj[attr]);
+		}
+		return copy;
+	}
 
-    throw new Error("Unable to copy obj! Its type isn't supported.");
+	throw new Error("Unable to copy obj! Its type isn't supported.");
 }
+
+init();
 

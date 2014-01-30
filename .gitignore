@@ -1,3 +1,9 @@
-ip
-oldip
-update.log
+settings.json
+node_modules/
+*.swp
+ips.json
+
+#Eclipse stuff
+.project
+.README.md.html
+
