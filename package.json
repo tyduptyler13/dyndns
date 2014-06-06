@@ -1,15 +1,12 @@
 {
 	"name": "DynDNS",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Updates cloudflare when the ip changes",
-	"author": "Tyler Scott <tydup13@cs.colostate.edu>",
+	"author": "Tyler Scott <tyduptyler13@myuplay.com>",
 	"dependencies": {
-		"request": "2.33.x",
-		"cron": "1.0.x",
-		"cheerio": "0.13.x",
-		"ipv6": "3.1.x"
+		"request": "2.36.x",
+		"cheerio": "0.16.x"
 	},
-	"engine": "node 0.10.x",
 	"scripts": {
 		"start": "node update.js"
 	},

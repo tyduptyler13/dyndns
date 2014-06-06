@@ -1,14 +1,11 @@
 var fs = require('fs');
 var cheerio = require('cheerio');
 var request = require('request');
-var os = require('os');
-var v6 = require('ipv6').v6;
 
 var settings, cache={};
 var ips = {};
 
 var ipv4Domains = [];
-var ipv6Domains = [];
 
 function init(){
 	fs.readFile('settings.json', 'utf8', function(err, data){
@@ -24,14 +21,12 @@ function init(){
 					getId(domain);
 				if (domain.content.indexOf("{ipv4}")!=-1)
 					ipv4Domains.push(domain);
-				if (domain.content.indexOf("{ipv6}")!=-1)
-					ipv6Domains.push(domain);
 			});
 
 			fs.readFile('ips.json', 'utf8', function(err, data){
 
 				if (err){
-					ips = {ipv4:"", ipv6:""};
+					ips = {ipv4:""};
 				} else {
 					ips = JSON.parse(data);
 				}
@@ -47,19 +42,24 @@ function init(){
 function getId(domain){
 	var save = function(){
 
-		cache[domain.name.replace('.','_')].response.recs.objs.forEach(function(record){
-			if (record.name == domain.name && record.type == domain.type){
-				domain.id = record.rec_id;
-			}
-		});
+		try{
+			cache[domain.name.replace('.','_')].response.recs.objs.forEach(function(record){
+				if (record.name == domain.name && record.type == domain.type){
+					domain.id = record.rec_id;
+				}
+			});
 
-		fs.writeFile("settings.json", JSON.stringify(settings, null, "\t"), function(err){
-			if (err){
-				console.warn(err);
-			} else {
-				console.log("Updated settings with domain id for " + domain.name + ".");
-			}
-		});
+
+			fs.writeFile("settings.json", JSON.stringify(settings, null, "\t"), function(err){
+				if (err){
+					console.warn(err);
+				} else {
+					console.log("Updated settings with domain id for " + domain.name + ".");
+				}
+			});
+		} catch (e) {
+			console.log("Failed to access the cache. It is likely that a previous request failed. Cache does not persist between runs so it will reset.");
+		}
 	};
 
 	if (cache[domain.name.replace('.','_')]==undefined){
@@ -116,18 +116,6 @@ function run(){
 			console.log("Skipping ipv4 check.");
 		}
 
-		if (settings.global.checkipv6!==false){
-			getIpv6(function(ip){
-				if (ips.ipv6 != ip){
-					ips.ipv6 = ip;
-					console.log("Ipv6 changed!", ip);
-					update(ipv6Domains);
-				}
-			});
-		} else {
-			console.log("Skipping ipv6 check.");
-		}
-
 	} catch (e) {
 		console.warn("Something has gone wrong in the main loop! ", e);
 	}
@@ -141,7 +129,7 @@ function update(list){
 
 	list.forEach(function(i){
 		var copy = clone(i);
-		copy.content = copy.content.replace('{ipv4}', ips.ipv4).replace('{ipv6}', ips.ipv6);
+		copy.content = copy.content.replace('{ipv4}', ips.ipv4);
 
 		for (var attr in settings.global.includes){
 			copy[attr] = settings.global.includes[attr];
@@ -195,18 +183,6 @@ function getIp(url, query, callback){
 
 function getIpv4(callback){
 	getIp(settings.global.ipv4Site, settings.global.ipv4Query, callback);
-}
-
-function getIpv6(callback){
-	os.networkInterfaces()[settings.global.ipv6Int].forEach(function(addr){
-		if (addr.family === "IPv6"){
-			var test = new v6.Address(addr.address);
-			if (test.getScope() === 'Global'){
-				callback(addr.address);
-				return;
-			}
-		}
-	});
 }
 
 function clone(obj) {
