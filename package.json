@@ -1,11 +1,11 @@
 {
-	"name": "DynDNS",
-	"version": "2.0.1",
-	"description": "Updates cloudflare when the ip changes",
+	"name": "dyndns",
+	"version": "2.1.1",
+	"description": "Dynamic DNS Updater for cloudflare."
 	"author": "Tyler Scott <tyduptyler13@myuplay.com>",
 	"dependencies": {
-		"request": "2.36.x",
-		"cheerio": "0.16.x"
+		"request": "~2.51",
+		"cheerio": "~0.18"
 	},
 	"scripts": {
 		"start": "node update.js"
@@ -13,5 +13,16 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/tyduptyler13/dyndns.git"
-	}
+	},
+	"bugs": {
+		"url": "https://github.com/tyduptyler13/dyndns/issues"
+	},
+	"files": {
+		"dyndns.js",
+		"README.md",
+		"settings-example.json"
+	},
+	"bin": "dyndns.js",
+	"engine": "~0.10.35",
+	"preferglobal": true
 }

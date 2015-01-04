@@ -2,12 +2,12 @@ var fs = require('fs');
 var cheerio = require('cheerio');
 var request = require('request');
 
-var settings, cache={};
-var ips = {};
-
-var ipv4Domains = [];
-
-function init(){
+var DynDNS = function(){
+	this.cache = {};
+	this.settings = {};
+	this.ips = {};
+}
+DynDNS.init = function() {
 	fs.readFile('settings.json', 'utf8', function(err, data){
 
 		if (err){
