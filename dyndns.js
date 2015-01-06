@@ -2,69 +2,78 @@ var fs = require('fs');
 var cheerio = require('cheerio');
 var request = require('request');
 
-var DynDNS = function(){
+function DynDNS(){
 	this.cache = {};
 	this.settings = {};
 	this.ips = {};
-}
-DynDNS.init = function() {
+	this.ipv4Domains = [];
+
+	if (!fs.existsSync('settings.json')){
+		console.warn("You are missing your settings.json file. You need to copy the example and configure it.");
+		throw "Misconfigured";
+	}
+
 	fs.readFile('settings.json', 'utf8', function(err, data){
 
 		if (err){
 			console.log(err);
 		} else {
 
-			settings = JSON.parse(data);
+			this.settings = JSON.parse(data);
 
-			settings.domains.forEach(function(domain){
+			this.settings.domains.forEach(function(domain){
 				if (domain.id == "?")
-					getId(domain);
+					this.getId(domain);
 				if (domain.content.indexOf("{ipv4}")!=-1)
-					ipv4Domains.push(domain);
+					this.ipv4Domains.push(domain);
 			});
 
 			fs.readFile('ips.json', 'utf8', function(err, data){
 
 				if (err){
-					ips = {ipv4:""};
+					this.ips = {ipv4:""};
 				} else {
-					ips = JSON.parse(data);
+					this.ips = JSON.parse(data);
 				}
-
-				run();
 
 			});
 		}
 
 	});
-}
 
-function getId(domain){
-	var save = function(){
+};
+DynDNS.prototype.save = function(domain){
 
-		try{
-			cache[domain.name.replace('.','_')].response.recs.objs.forEach(function(record){
-				if (record.name == domain.name && record.type == domain.type){
-					domain.id = record.rec_id;
-				}
-			});
+	try{
+		this.cache[domain.name.replace('.','_')].response.recs.objs.forEach(function(record){
+			if (record.name == domain.name && record.type == domain.type){
+				domain.id = record.rec_id;
+			}
+		});
 
 
-			fs.writeFile("settings.json", JSON.stringify(settings, null, "\t"), function(err){
-				if (err){
-					console.warn(err);
-				} else {
-					console.log("Updated settings with domain id for " + domain.name + ".");
-				}
-			});
-		} catch (e) {
-			console.log("Failed to access the cache. It is likely that a previous request failed. Cache does not persist between runs so it will reset.");
-		}
-	};
+		fs.writeFile("settings.json", JSON.stringify(this.settings, null, "\t"), function(err){
+			if (err){
+				console.warn(err);
+			} else {
+				console.log("Updated settings with domain id for " + domain.name + ".");
+			}
+		});
+	} catch (e) {
+		console.log("Failed to access the cache. Something has gone wrong, try again.");
+		throw "Failure.";
+	}
 
-	if (cache[domain.name.replace('.','_')]==undefined){
+};
+DynDNS.prototype.getId = function(domain) {
+
+	var settings = this.settings;
+
+	if (this.cache[domain.name.replace('.','_')]==undefined){
 		request({
 			url: settings.global.url,
+			timeout: settings.global.timeout,
+			strictSSL: settings.global.strictSSL,
 			qs: {
 				email : settings.global.includes.email,
 				tkn : settings.global.includes.tkn,
@@ -80,52 +89,42 @@ function getId(domain){
 					console.log("Failed to get id: ", response.msg);
 					return;
 				} else {
-					cache[domain.name.replace('.','_')] = response;
-					save();
+					this.cache[domain.name.replace('.','_')] = response;
+					this.save(domain);
 				}
 			}
 		});
 	} else {
-		save();
+		this.save(domain);
 	}
-}
-
-function saveips(){
-	fs.writeFile('ips.json', JSON.stringify(ips), function(err){
+};
+DynDNS.prototype.saveips = function(){
+	fs.writeFile('ips.json', JSON.stringify(this.ips), function(err){
 		if (err){
 			console.warn("Failed to save ips.", err);
 		} else {
 			console.log("Saved ips to ips.json");
 		}
 	});
-}
+};
+DynDNS.prototype.run = function(){
 
-function run(){
-
-	try{
-
-		if (settings.global.checkipv4!==false){
-			getIpv4(function(ip){
-				if (ips.ipv4 != ip){
-					ips.ipv4 = ip;
-					console.log("Ipv4 changed!", ip);
-					update(ipv4Domains);
-				}
-			});
-		} else {
-			console.log("Skipping ipv4 check.");
-		}
-
-	} catch (e) {
-		console.warn("Something has gone wrong in the main loop! ", e);
+	if (this.settings.global.checkipv4!==false){
+		getIpv4(function(ip){
+			if (this.ips.ipv4 != ip){
+				this.ips.ipv4 = ip;
+				console.log("Ipv4 changed!", ip);
+				this.update(this.ipv4Domains);
+			}
+		});
+	} else {
+		console.log("Skipping ipv4 check.");
 	}
 
-}
-
-function update(list){
-	saveips(); //Save for next run.
-
+};
+DynDNS.prototype.update = function(list){
 	var qss = [];
+	var settings = this.settings;
 
 	list.forEach(function(i){
 		var copy = clone(i);
@@ -143,8 +142,8 @@ function update(list){
 		var req = {
 				url: settings.global.url,
 				qs: qs,
-				timeout: global.timeout,
-				strictSSL: global.strictSSL
+				timeout: settings.global.timeout,
+				strictSSL: settings.global.strictSSL
 		};
 
 		request(req, function(err, res, body){
@@ -162,9 +161,8 @@ function update(list){
 			}
 		});
 	});
-}
-
-function getIp(url, query, callback){
+};
+DynDNS.getIp = function(url, query, callback){
 
 	request(url, function(err, resp, body){
 
@@ -179,12 +177,16 @@ function getIp(url, query, callback){
 
 	});
 
+};
+DynDNS.prototype.getIpv4 = function(callback){
+	this.getIp(this.settings.global.ipv4Site, this.settings.global.ipv4Query, callback);
 }
 
-function getIpv4(callback){
-	getIp(settings.global.ipv4Site, settings.global.ipv4Query, callback);
-}
-
+/**
+ * Deep clone function.
+ * @param obj
+ * @returns A deep copy of the orginal object.
+ */
 function clone(obj) {
 	// Handle the 3 simple types, and null or undefined
 	if (null == obj || "object" != typeof obj) return obj;
@@ -217,5 +219,13 @@ function clone(obj) {
 	throw new Error("Unable to copy obj! Its type isn't supported.");
 }
 
-init();
+
+(function(){
+	if (require.main === module){
+		var dyn = new DynDNS();
+		dyn.run();
+	} else {
+		exports = DynDNS;
+	}
+})();
 

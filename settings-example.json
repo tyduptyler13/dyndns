@@ -2,10 +2,8 @@
 	"global": {
 		"url": "https://www.cloudflare.com/api_json.html",
 		"checkipv4": true,
-		"checkipv6": false,
 		"ipv4Site": "http://ip4.me",
 		"ipv4Query": "td[bgcolor=D0D0F0]",
-		"ipv6Int": "eth0",
 		"timeout": 5000,
 		"strictSSL": true,
 		"includes": {

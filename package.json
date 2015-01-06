@@ -1,7 +1,7 @@
 {
 	"name": "dyndns",
 	"version": "2.1.1",
-	"description": "Dynamic DNS Updater for cloudflare."
+	"description": "Dynamic DNS Updater for cloudflare.",
 	"author": "Tyler Scott <tyduptyler13@myuplay.com>",
 	"dependencies": {
 		"request": "~2.51",
@@ -17,11 +17,11 @@
 	"bugs": {
 		"url": "https://github.com/tyduptyler13/dyndns/issues"
 	},
-	"files": {
+	"files": [
 		"dyndns.js",
 		"README.md",
 		"settings-example.json"
-	},
+	],
 	"bin": "dyndns.js",
 	"engine": "~0.10.35",
 	"preferglobal": true
