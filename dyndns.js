@@ -137,15 +137,19 @@ DynDNS.prototype.saveips = function(){
 };
 DynDNS.prototype.run = function(){
 
-    var scope;
+    var scope = this;
 
 	if (this.settings.global.checkipv4!==false){
-		getIpv4(function(ip){
-			if (scope.ips.ipv4 != ip){
+		console.log("Getting your IP address.");
+        this.getIpv4(function(ip){
+			console.log("Your ip is: " + ip); 
+            if (scope.ips.ipv4 != ip){
 				scope.ips.ipv4 = ip;
 				console.log("Ipv4 changed!", ip);
-				scope.update(this.ipv4Domains);
-			}
+				scope.update(scope.ipv4Domains);
+			} else {
+                console.log("Your ip has not changed, nothing to be done.");
+            }
 		});
 	} else {
 		console.log("Skipping ipv4 check.");
@@ -157,42 +161,64 @@ DynDNS.prototype.update = function(list){
 	var settings = this.settings;
     var scope = this;
 
-	list.forEach(function(i){
+    console.log("Updating:", list);
+
+	async.each(list, function(i, callback){
 		var copy = clone(i);
-		copy.content = copy.content.replace('{ipv4}', ips.ipv4);
+		copy.content = copy.content.replace('{ipv4}', scope.ips.ipv4);
 
 		for (var attr in settings.global.includes){
 			copy[attr] = settings.global.includes[attr];
 		}
 
 		qss.push(copy);
-	});
 
-	qss.forEach(function(qs){
+        callback();
 
-		var req = {
-				url: settings.global.url,
-				qs: qs,
-				timeout: settings.global.timeout,
-				strictSSL: settings.global.strictSSL
-		};
+	}, function(err){
 
-		request(req, function(err, res, body){
-			if (err){
-				console.warn(err);
-				return;
-			}
-			if (res.statusCode == 200){
-				var responce = JSON.parse(body);
-				if (responce['result']=="success"){
-					console.log("Operation was a success for " + qs.z + ".");
-                    scope.saveips();
-				} else {
-					console.warn("Something went wrong!");
-				}
-			}
-		});
-	});
+        if (err){
+            throw err;
+        }
+
+        async.each(qss, function(qs, callback){
+
+            var req = {
+                    url: settings.global.url,
+                    qs: qs,
+                    timeout: settings.global.timeout,
+                    strictSSL: settings.global.strictSSL
+            };
+
+            request(req, function(err, res, body){
+                if (err){
+                    console.warn(err);
+                    return;
+                }
+                if (res.statusCode == 200){
+                    var res = JSON.parse(body);
+                    if (res['result']=="success"){
+                        console.log("Operation was a success for " + qs.z + ".");
+                        callback();
+                    } else {
+                        console.warn("Something went wrong! Try again.");
+                        callback(res['msg']);
+                    }
+                }
+            });
+        }, function(err){ // This will be reached if everything was successful.
+            
+            if (err){
+                console.error(err);
+                throw err;
+            }
+            
+            console.log("Everything was a success!");
+            scope.saveips();
+        });
+
+    });
+
 };
 DynDNS.getIp = function(url, query, callback){
 
@@ -211,7 +237,7 @@ DynDNS.getIp = function(url, query, callback){
 
 };
 DynDNS.prototype.getIpv4 = function(callback){
-	this.getIp(this.settings.global.ipv4Site, this.settings.global.ipv4Query, callback);
+	DynDNS.getIp(this.settings.global.ipv4Site, this.settings.global.ipv4Query, callback);
 }
 
 /**
