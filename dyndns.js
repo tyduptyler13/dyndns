@@ -1,8 +1,14 @@
 var fs = require('fs');
 var cheerio = require('cheerio');
 var request = require('request');
+var async = require('async');
 
-function DynDNS(){
+/**
+ * This will call the callback when completed.
+ *
+ * Note that this function will return before setup is complete.
+ */
+function DynDNS(callback){
 	this.cache = {};
 	this.settings = {};
 	this.ips = {};
@@ -13,33 +19,54 @@ function DynDNS(){
 		throw "Misconfigured";
 	}
 
-	fs.readFile('settings.json', 'utf8', function(err, data){
+    var scope = this;
 
-		if (err){
-			console.log(err);
-		} else {
+    //Wait for both calls to complete.
+    async.parallel([function(callback){
+        fs.readFile('settings.json', 'utf8', function(err, data){
 
-			this.settings = JSON.parse(data);
+            if (err){
+                callback(err, "Failed.");
+            } else {
 
-			this.settings.domains.forEach(function(domain){
-				if (domain.id == "?")
-					this.getId(domain);
-				if (domain.content.indexOf("{ipv4}")!=-1)
-					this.ipv4Domains.push(domain);
-			});
+                scope.settings = JSON.parse(data);
 
-			fs.readFile('ips.json', 'utf8', function(err, data){
+                scope.settings.domains.forEach(function(domain){
+                    if (domain.id == "?")
+                        scope.getId(domain);
+                    if (domain.content.indexOf("{ipv4}")!=-1)
+                        scope.ipv4Domains.push(domain);
+                });
 
-				if (err){
-					this.ips = {ipv4:""};
-				} else {
-					this.ips = JSON.parse(data);
-				}
+            }
 
-			});
-		}
+            callback(null, "Read in settings.");
 
-	});
+        });
+    }, function(callback){
+        fs.readFile('ips.json', 'utf8', function(err, data){
+
+            if (err){
+                scope.ips = {ipv4:""};
+            } else {
+                scope.ips = JSON.parse(data);
+            }
+
+            callback(null, "IP logging is complete");
+
+        });
+    }],
+    function(err, results){
+        if (!err){
+            console.log(results);
+        } else {
+            console.error(err);
+            throw err;
+        }
+        try {
+            callback();
+        }catch(e){}
+    });
 
 };
 DynDNS.prototype.save = function(domain){
@@ -68,6 +95,7 @@ DynDNS.prototype.save = function(domain){
 DynDNS.prototype.getId = function(domain) {
 
 	var settings = this.settings;
+    var scope = this;
 
 	if (this.cache[domain.name.replace('.','_')]==undefined){
 		request({
@@ -89,8 +117,8 @@ DynDNS.prototype.getId = function(domain) {
 					console.log("Failed to get id: ", response.msg);
 					return;
 				} else {
-					this.cache[domain.name.replace('.','_')] = response;
-					this.save(domain);
+					scope.cache[domain.name.replace('.','_')] = response;
+					scope.save(domain);
 				}
 			}
 		});
@@ -109,12 +137,14 @@ DynDNS.prototype.saveips = function(){
 };
 DynDNS.prototype.run = function(){
 
+    var scope;
+
 	if (this.settings.global.checkipv4!==false){
 		getIpv4(function(ip){
-			if (this.ips.ipv4 != ip){
-				this.ips.ipv4 = ip;
+			if (scope.ips.ipv4 != ip){
+				scope.ips.ipv4 = ip;
 				console.log("Ipv4 changed!", ip);
-				this.update(this.ipv4Domains);
+				scope.update(this.ipv4Domains);
 			}
 		});
 	} else {
@@ -125,6 +155,7 @@ DynDNS.prototype.run = function(){
 DynDNS.prototype.update = function(list){
 	var qss = [];
 	var settings = this.settings;
+    var scope = this;
 
 	list.forEach(function(i){
 		var copy = clone(i);
@@ -155,6 +186,7 @@ DynDNS.prototype.update = function(list){
 				var responce = JSON.parse(body);
 				if (responce['result']=="success"){
 					console.log("Operation was a success for " + qs.z + ".");
+                    scope.saveips();
 				} else {
 					console.warn("Something went wrong!");
 				}
@@ -222,8 +254,11 @@ function clone(obj) {
 
 (function(){
 	if (require.main === module){
-		var dyn = new DynDNS();
-		dyn.run();
+		console.log("Creating DynDNS instance.");
+        var dyn = new DynDNS(function(){
+           console.log("Executing DynDNS");
+           dyn.run();
+        });
 	} else {
 		exports = DynDNS;
 	}
