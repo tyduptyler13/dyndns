@@ -2,7 +2,8 @@
 	"global": {
 		"url": "https://www.cloudflare.com/api_json.html",
 		"checkipv4": true,
-		"ipv4Site": "http://ip4.me",
+		"checkipv6": true,
+        "ipv4Site": "http://ip4.me",
 		"ipv4Query": "td[bgcolor=D0D0F0]",
 		"timeout": 5000,
 		"strictSSL": true,
@@ -25,11 +26,11 @@
 		{
 			"name": "example2.com",
 			"a": "rec_edit",
-			"type": "A",
+			"type": "AAAA",
 			"ttl": 1,
 			"service_mode": 1,
 			"z": "example2.com",
-			"content": "{ipv4}",
+			"content": "{ipv6}",
 			"id": "?"
 		}
 	]

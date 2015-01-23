@@ -2,6 +2,7 @@ var fs = require('fs');
 var cheerio = require('cheerio');
 var request = require('request');
 var async = require('async');
+var os = require('os');
 
 /**
  * This will call the callback when completed.
@@ -13,6 +14,7 @@ function DynDNS(callback){
 	this.settings = {};
 	this.ips = {};
 	this.ipv4Domains = [];
+    this.ipv6Domains = [];
 
 	if (!fs.existsSync('settings.json')){
 		console.warn("You are missing your settings.json file. You need to copy the example and configure it.");
@@ -31,12 +33,15 @@ function DynDNS(callback){
 
                 scope.settings = JSON.parse(data);
 
-                scope.settings.domains.forEach(function(domain){
+                for (var i=0; i < scope.settings.domains.length; ++i){
+                    var domain = scope.settings.domains[i];
                     if (domain.id == "?")
                         scope.getId(domain);
                     if (domain.content.indexOf("{ipv4}")!=-1)
                         scope.ipv4Domains.push(domain);
-                });
+                    if (domain.content.indexOf("{ipv6}")!=-1)
+                        scope.ipv6Domains.push(domain);
+                }
 
             }
 
@@ -47,7 +52,7 @@ function DynDNS(callback){
         fs.readFile('ips.json', 'utf8', function(err, data){
 
             if (err){
-                scope.ips = {ipv4:""};
+                scope.ips = {ipv4:"", ipv6:""};
             } else {
                 scope.ips = JSON.parse(data);
             }
@@ -70,6 +75,8 @@ function DynDNS(callback){
 
 };
 DynDNS.prototype.save = function(domain){
+
+    console.log("Debug:", this.cache, domain);
 
 	try{
 		this.cache[domain.name.replace('.','_')].response.recs.objs.forEach(function(record){
@@ -115,7 +122,6 @@ DynDNS.prototype.getId = function(domain) {
 				var response = JSON.parse(body);
 				if (response.err){
 					console.log("Failed to get id: ", response.msg);
-					return;
 				} else {
 					scope.cache[domain.name.replace('.','_')] = response;
 					scope.save(domain);
@@ -126,7 +132,8 @@ DynDNS.prototype.getId = function(domain) {
 		this.save(domain);
 	}
 };
-DynDNS.prototype.saveips = function(){
+DynDNS.prototype.saveip = function(type, ip){
+    this.ips[type] = ip;
 	fs.writeFile('ips.json', JSON.stringify(this.ips), function(err){
 		if (err){
 			console.warn("Failed to save ips.", err);
@@ -139,14 +146,13 @@ DynDNS.prototype.run = function(){
 
     var scope = this;
 
-	if (this.settings.global.checkipv4!==false){
+	if (this.settings.global.checkipv4===true){
 		console.log("Getting your IP address.");
         this.getIpv4(function(ip){
 			console.log("Your ip is: " + ip); 
             if (scope.ips.ipv4 != ip){
-				scope.ips.ipv4 = ip;
-				console.log("Ipv4 changed!", ip);
-				scope.update(scope.ipv4Domains);
+				console.log("Ipv4 changed!");
+				scope.update(scope.ipv4Domains, 'ipv4', ip);
 			} else {
                 console.log("Your ip has not changed, nothing to be done.");
             }
@@ -155,8 +161,22 @@ DynDNS.prototype.run = function(){
 		console.log("Skipping ipv4 check.");
 	}
 
+    if (this.settings.global.checkipv6===true){
+        console.log("Getting ipv6 address.");
+        var ipv6 = DynDNS.getIpv6(this.settings.global.netInt);
+        console.log("Your ipv6 is: " + ipv6);
+        if (this.ips.ipv6 != ipv6){
+            console.log("Ipv6 changed!");
+            this.update(this.ipv6Domains, 'ipv6', ipv6);
+        } else {
+            console.log("Your ipv6 has not changed, nothing to be done.");
+        }
+    } else {
+        console.log("Skipping ipv6 check.");
+    }
+
 };
-DynDNS.prototype.update = function(list){
+DynDNS.prototype.update = function(list, rep, ip){
 	var qss = [];
 	var settings = this.settings;
     var scope = this;
@@ -165,7 +185,7 @@ DynDNS.prototype.update = function(list){
 
 	async.each(list, function(i, callback){
 		var copy = clone(i);
-		copy.content = copy.content.replace('{ipv4}', scope.ips.ipv4);
+		copy.content = copy.content.replace('{'+rep+'}', ip);
 
 		for (var attr in settings.global.includes){
 			copy[attr] = settings.global.includes[attr];
@@ -214,7 +234,7 @@ DynDNS.prototype.update = function(list){
             }
             
             console.log("Everything was a success!");
-            scope.saveips();
+            scope.saveip(rep, ip);
         });
 
     });
@@ -238,6 +258,21 @@ DynDNS.getIp = function(url, query, callback){
 };
 DynDNS.prototype.getIpv4 = function(callback){
 	DynDNS.getIp(this.settings.global.ipv4Site, this.settings.global.ipv4Query, callback);
+}
+DynDNS.getIpv6 = function(name){
+
+    var ips = os.networkInterfaces()[name];
+
+    for (var i=0; i < ips.length; ++i){
+        if (ips[i].family == 'IPv6'){
+            return ips[i].address; //Return first result. Usually the right one.
+        }
+    }
+
+    console.warn("You do not have an ipv6 address!");
+
+    return null;
+
 }
 
 /**
