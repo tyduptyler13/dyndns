@@ -33,19 +33,27 @@ function DynDNS(callback){
 
                 scope.settings = JSON.parse(data);
 
-                for (var i=0; i < scope.settings.domains.length; ++i){
-                    var domain = scope.settings.domains[i];
-                    if (domain.id == "?")
-                        scope.getId(domain);
+                
+                async.each(scope.settings.domains, function(domain, callback){
                     if (domain.content.indexOf("{ipv4}")!=-1)
                         scope.ipv4Domains.push(domain);
                     if (domain.content.indexOf("{ipv6}")!=-1)
                         scope.ipv6Domains.push(domain);
-                }
+                    if (domain.id == "?"){
+                        scope.getId(domain, callback);
+                        return;
+                    }
+                    callback();
+                }, function(err){
+                    if (err) {
+                        console.error("An error occured:", err);
+                        callback(err);
+                    } else {
+                        callback();
+                    }
+                });
 
             }
-
-            callback(null, "Read in settings.");
 
         });
     }, function(callback){
@@ -57,13 +65,13 @@ function DynDNS(callback){
                 scope.ips = JSON.parse(data);
             }
 
-            callback(null, "IP logging is complete");
+            callback(); 
 
         });
     }],
     function(err, results){
         if (!err){
-            console.log(results);
+            console.log("Finished setting up.");
         } else {
             console.error(err);
             throw err;
@@ -99,7 +107,7 @@ DynDNS.prototype.save = function(domain){
 	}
 
 };
-DynDNS.prototype.getId = function(domain) {
+DynDNS.prototype.getId = function(domain, callback) {
 
 	var settings = this.settings;
     var scope = this;
@@ -125,8 +133,10 @@ DynDNS.prototype.getId = function(domain) {
 				} else {
 					scope.cache[domain.name.replace('.','_')] = response;
 					scope.save(domain);
+                    console.log("Filled in id for domain: " + domain.name);
 				}
 			}
+            callback();
 		});
 	} else {
 		this.save(domain);
