@@ -84,8 +84,6 @@ function DynDNS(callback){
 };
 DynDNS.prototype.save = function(domain){
 
-    console.log("Debug:", this.cache, domain);
-
 	try{
 		this.cache[domain.name.replace('.','_')].response.recs.objs.forEach(function(record){
 			if (record.name == domain.name && record.type == domain.type){
