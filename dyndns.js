@@ -100,7 +100,7 @@ DynDNS.prototype.save = function(domain){
 			}
 		});
 	} catch (e) {
-		console.log("Failed to access the cache. Something has gone wrong, try again.");
+		console.log("Failed to access the cache. Something has gone wrong, try again.", e);
 		throw "Failure.";
 	}
 
@@ -126,7 +126,7 @@ DynDNS.prototype.getId = function(domain, callback) {
 				console.warn("Could not get id for domain!", err);
 			} else {
 				var response = JSON.parse(body);
-				if (response.err){
+				if (response.msg != null){
 					console.log("Failed to get id: ", response.msg);
 				} else {
 					scope.cache[domain.name.replace('.','_')] = response;
