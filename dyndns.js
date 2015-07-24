@@ -14,72 +14,72 @@ function DynDNS(callback){
 	this.settings = {};
 	this.ips = {};
 	this.ipv4Domains = [];
-    this.ipv6Domains = [];
+	this.ipv6Domains = [];
 
 	if (!fs.existsSync('settings.json')){
 		console.warn("You are missing your settings.json file. You need to copy the example and configure it.");
 		throw "Misconfigured";
 	}
 
-    var scope = this;
+	var scope = this;
 
-    //Wait for both calls to complete.
-    async.parallel([function(callback){
-        fs.readFile('settings.json', 'utf8', function(err, data){
+	//Wait for both calls to complete.
+	async.parallel([function(callback){
+		fs.readFile('settings.json', 'utf8', function(err, data){
 
-            if (err){
-                callback(err, "Failed.");
-            } else {
+			if (err){
+				callback(err, "Failed.");
+			} else {
 
-                scope.settings = JSON.parse(data);
+				scope.settings = JSON.parse(data);
 
-                
-                async.each(scope.settings.domains, function(domain, callback){
-                    if (domain.content.indexOf("{ipv4}")!=-1)
-                        scope.ipv4Domains.push(domain);
-                    if (domain.content.indexOf("{ipv6}")!=-1)
-                        scope.ipv6Domains.push(domain);
-                    if (domain.id == "?"){
-                        scope.getId(domain, callback);
-                        return;
-                    }
-                    callback();
-                }, function(err){
-                    if (err) {
-                        console.error("An error occured:", err);
-                        callback(err);
-                    } else {
-                        callback();
-                    }
-                });
 
-            }
+				async.each(scope.settings.domains, function(domain, callback){
+					if (domain.content.indexOf("{ipv4}")!=-1)
+						scope.ipv4Domains.push(domain);
+					if (domain.content.indexOf("{ipv6}")!=-1)
+						scope.ipv6Domains.push(domain);
+					if (domain.id == "?"){
+						scope.getId(domain, callback);
+						return;
+					}
+					callback();
+				}, function(err){
+					if (err) {
+						console.error("An error occured:", err);
+						callback(err);
+					} else {
+						callback();
+					}
+				});
 
-        });
-    }, function(callback){
-        fs.readFile('ips.json', 'utf8', function(err, data){
+			}
 
-            if (err){
-                scope.ips = {ipv4:"", ipv6:""};
-            } else {
-                scope.ips = JSON.parse(data);
-            }
+		});
+	}, function(callback){
+		fs.readFile('ips.json', 'utf8', function(err, data){
 
-            callback(); 
+			if (err){
+				scope.ips = {ipv4:"", ipv6:""};
+			} else {
+				scope.ips = JSON.parse(data);
+			}
 
-        });
-    }],
-    function(err, results){
-        if (!err){
-            console.log("Finished setting up.");
-        } else {
-            console.error(err);
-            throw err;
-        }
-        try {
-            callback();
-        }catch(e){}
-    });
+			callback(); 
+
+		});
+	}],
+	function(err, results){
+		if (!err){
+			console.log("Finished setting up.");
+		} else {
+			console.error(err);
+			throw err;
+		}
+		try {
+			callback();
+		}catch(e){}
+	});
 
 };
 DynDNS.prototype.save = function(domain){
@@ -108,7 +108,7 @@ DynDNS.prototype.save = function(domain){
 DynDNS.prototype.getId = function(domain, callback) {
 
 	var settings = this.settings;
-    var scope = this;
+	var scope = this;
 
 	if (this.cache[domain.name.replace('.','_')]==undefined){
 		request({
@@ -131,17 +131,17 @@ DynDNS.prototype.getId = function(domain, callback) {
 				} else {
 					scope.cache[domain.name.replace('.','_')] = response;
 					scope.save(domain);
-                    console.log("Filled in id for domain: " + domain.name);
+					console.log("Filled in id for domain: " + domain.name);
 				}
 			}
-            callback();
+			callback();
 		});
 	} else {
 		this.save(domain);
 	}
 };
 DynDNS.prototype.saveip = function(type, ip){
-    this.ips[type] = ip;
+	this.ips[type] = ip;
 	fs.writeFile('ips.json', JSON.stringify(this.ips), function(err){
 		if (err){
 			console.warn("Failed to save ips.", err);
@@ -152,44 +152,44 @@ DynDNS.prototype.saveip = function(type, ip){
 };
 DynDNS.prototype.run = function(){
 
-    var scope = this;
+	var scope = this;
 
 	if (this.settings.global.checkipv4===true){
 		console.log("Getting your IP address.");
-        this.getIpv4(function(ip){
+		this.getIpv4(function(ip){
 			console.log("Your ip is: " + ip); 
-            if (scope.ips.ipv4 != ip){
+			if (scope.ips.ipv4 != ip){
 				console.log("Ipv4 changed!");
 				scope.update(scope.ipv4Domains, 'ipv4', ip);
 			} else {
-                console.log("Your ip has not changed, nothing to be done.");
-            }
+				console.log("Your ip has not changed, nothing to be done.");
+			}
 		});
 	} else {
 		console.log("Skipping ipv4 check.");
 	}
 
-    if (this.settings.global.checkipv6===true){
-        console.log("Getting ipv6 address.");
-        var ipv6 = DynDNS.getIpv6(this.settings.global.netInt);
-        console.log("Your ipv6 is: " + ipv6);
-        if (this.ips.ipv6 != ipv6){
-            console.log("Ipv6 changed!");
-            this.update(this.ipv6Domains, 'ipv6', ipv6);
-        } else {
-            console.log("Your ipv6 has not changed, nothing to be done.");
-        }
-    } else {
-        console.log("Skipping ipv6 check.");
-    }
+	if (this.settings.global.checkipv6===true){
+		console.log("Getting ipv6 address.");
+		var ipv6 = DynDNS.getIpv6(this.settings.global.netInt);
+		console.log("Your ipv6 is: " + ipv6);
+		if (this.ips.ipv6 != ipv6){
+			console.log("Ipv6 changed!");
+			this.update(this.ipv6Domains, 'ipv6', ipv6);
+		} else {
+			console.log("Your ipv6 has not changed, nothing to be done.");
+		}
+	} else {
+		console.log("Skipping ipv6 check.");
+	}
 
 };
 DynDNS.prototype.update = function(list, rep, ip){
-	var qss = [];
+	var querySettings = [];
 	var settings = this.settings;
-    var scope = this;
+	var scope = this;
 
-    console.log("Updating:", list);
+	console.log("Updating:", list);
 
 	async.each(list, function(i, callback){
 		var copy = clone(i);
@@ -201,51 +201,51 @@ DynDNS.prototype.update = function(list, rep, ip){
 
 		qss.push(copy);
 
-        callback();
+		callback();
 
 	}, function(err){
 
-        if (err){
-            throw err;
-        }
+		if (err){
+			throw err;
+		}
 
-        async.each(qss, function(qs, callback){
+		async.each(qss, function(qs, callback){
 
-            var req = {
-                    url: settings.global.url,
-                    qs: qs,
-                    timeout: settings.global.timeout,
-                    strictSSL: settings.global.strictSSL
-            };
+			var req = {
+				url: settings.global.url,
+				qs: qs,
+				timeout: settings.global.timeout,
+				strictSSL: settings.global.strictSSL
+			};
 
-            request(req, function(err, res, body){
-                if (err){
-                    console.warn(err);
-                    return;
-                }
-                if (res.statusCode == 200){
-                    var res = JSON.parse(body);
-                    if (res['result']=="success"){
-                        console.log("Operation was a success for " + qs.z + ".");
-                        callback();
-                    } else {
-                        console.warn("Something went wrong! Try again.");
-                        callback(res['msg']);
-                    }
-                }
-            });
-        }, function(err){ // This will be reached if everything was successful.
-            
-            if (err){
-                console.error(err);
-                throw err;
-            }
-            
-            console.log("Everything was a success!");
-            scope.saveip(rep, ip);
-        });
+			request(req, function(err, res, body){
+				if (err){
+					console.warn(err);
+					return;
+				}
+				if (res.statusCode == 200){
+					var res = JSON.parse(body);
+					if (res['result']=="success"){
+						console.log("Operation was a success for " + qs.z + ".");
+						callback();
+					} else {
+						console.warn("Failed:", res['msg']);
+						callback(res['msg']);
+					}
+				}
+			});
+		}, function(err){ // This will be reached if everything was successful.
 
-    });
+			if (err){
+				console.error(err);
+				throw err;
+			}
+
+			console.log("Everything was a success!");
+			scope.saveip(rep, ip);
+		});
+
+	});
 
 };
 DynDNS.getIp = function(url, query, callback){
@@ -269,17 +269,17 @@ DynDNS.prototype.getIpv4 = function(callback){
 }
 DynDNS.getIpv6 = function(name){
 
-    var ips = os.networkInterfaces()[name];
+	var ips = os.networkInterfaces()[name];
 
-    for (var i=0; i < ips.length; ++i){
-        if (ips[i].family == 'IPv6'){
-            return ips[i].address; //Return first result. Usually the right one.
-        }
-    }
+	for (var i=0; i < ips.length; ++i){
+		if (ips[i].family == 'IPv6'){
+			return ips[i].address; //Return first result. Usually the right one.
+		}
+	}
 
-    console.warn("You do not have an ipv6 address!");
+	console.warn("You do not have an ipv6 address!");
 
-    return null;
+	return null;
 
 }
 
@@ -324,10 +324,10 @@ function clone(obj) {
 (function(){
 	if (require.main === module){
 		console.log("Creating DynDNS instance.");
-        var dyn = new DynDNS(function(){
-           console.log("Executing DynDNS");
-           dyn.run();
-        });
+		var dyn = new DynDNS(function(){
+			console.log("Executing DynDNS");
+			dyn.run();
+		});
 	} else {
 		exports = DynDNS;
 	}
