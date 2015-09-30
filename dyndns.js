@@ -199,7 +199,7 @@ DynDNS.prototype.update = function(list, rep, ip){
 			copy[attr] = settings.global.includes[attr];
 		}
 
-		qss.push(copy);
+		querySettings.push(copy);
 
 		callback();
 
@@ -209,7 +209,7 @@ DynDNS.prototype.update = function(list, rep, ip){
 			throw err;
 		}
 
-		async.each(qss, function(qs, callback){
+		async.each(querySettings, function(qs, callback){
 
 			var req = {
 				url: settings.global.url,
